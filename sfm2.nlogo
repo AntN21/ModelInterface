@@ -1,14 +1,21 @@
+__includes [ "MouseSelection.nls" ]
 breed [peds ped]
+     ; the four sides of the selection rectangle
 globals [time mean-speed stddev-speed flow-cum]
-peds-own [speedx speedy state]
+peds-own [speedx speedy state targetx targety]
 patches-own [
   region ; the number of the region that the patch is in, patches outside all regions have region = 0
   accessible ; ne doit pas longer les murs. (car taille 3 pour les personnes)
 ]
 to setup
+
   clear-all reset-ticks if cycle?[set Nb-peds 5 set dt .05]
   setup-regions
   set-agents
+  ask peds [set targetx xdoor
+    set targety 0 ]
+
+  setup-mouse
 end
 
 to setup-regions
@@ -20,22 +27,51 @@ to setup-regions
   ; largeur de la voiture : 3m donc 22 patchs, disons 20.
   ; longueurs de la voiture 7m donc 52 patchs, disons 50.
   ; largeur de la porte : 2m donc 15 patchs
-  let xdoor -3
-
-  ask patches [set region 0] ; la voiture
+  let w 3
+  let ydoor 0
+  ask patches [set region 0 set accessible true] ; la voiture
   ask patches with [pxcor = xdoor ] [
 
-    ifelse (abs pycor >= 2)[
+    ifelse (abs (pycor - ydoor) >= rdoor)[
       set region 1
   ]
     [set region 2]
   ] ; les murs
+  ask patches with [pxcor < xdoor ] [
+    set region 3
+
+    if abs (pycor - ydoor) >= (rdoor)[
+      let y abs (pycor - ydoor)
+      let r remainder y 12
+      if r > 2 and r < 10 [
+        set region 4
+      ]
+    ]
+    ;if abs (remainder pycor 2) = 1[
+    ;  set region 4
+    ;]
+  ] ; les murs
+
+
+
+
+
+
+  ask patches with [(abs (pycor - 12) <= 2) and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [if pxcor != 0 and pxcor != xdoor [set region 4]]
+  ask patches with [(abs (pycor + 12) <= 2) and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [if pxcor != 0 and pxcor != xdoor [set region 4]]
+
+  ask patches with [abs pycor = 12 and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [set region 1]
+  ask patches with [pxcor < min-pxcor + 1 or pxcor > (max-pxcor - 1) or pycor < min-pycor + 1 or pycor > (max-pycor - 1) ][set region 1] ; les bords. problème de bord sinon, à cause de patch-ahead (pas toujours bien défini).
+
+  ;ask patches with [pycor = 38 and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [set region 1]
+
   ; patches with [pxcor = xdoor and (abs pycor >= 2) ] [set region 2] ; les murs
 
-  ask patches with [region = 0] [set pcolor white]
-  ask patches with [region = 1] [set pcolor black]
-  ask patches with [region = 2] [set pcolor yellow]
-  ask patches with [region = 3] [set pcolor lime]
+  ask patches with [region = 0] [set pcolor white] ;quai
+  ask patches with [region = 1] [set pcolor black] ;mur
+  ask patches with [region = 2] [set pcolor red] ;porte
+  ask patches with [region = 3] [set pcolor yellow] ; rame
+  ask patches with [region = 4] [set pcolor orange ] ; place
 
   ask patches [
     ifelse region = 0 [
@@ -57,10 +93,55 @@ to set-agents
   ask n-of round (p * nb-peds) peds [set state 2 set color orange]
 end
 
+to place
+  if timer > .2 and mouse-down? and mouse-xcor < xdoor
+
+  [reset-timer
+    ask  patch mouse-xcor mouse-ycor[
+      let typee region
+
+      set typee (4 -  remainder typee 3)
+      set region typee
+      if typee = 4 [set pcolor orange]
+      if typee = 3 [set pcolor yellow]
+      ] ] display
+end
+
+to dplace
+  if timer > .2 and mouse-down? and mouse-xcor < xdoor
+  [let x0 mouse-xcor
+   let y0 mouse-ycor
+    if not mouse-down? and mouse-xcor < xdoor
+
+  [reset-timer
+      ask patches with [(pxcor < max (list x0 mouse-xcor)) and (pxcor >= min (list x0 mouse-xcor)) and (pycor < max (list y0 mouse-ycor)) and (pycor >= min (list y0 mouse-ycor))][
+      let typee region
+      set typee (4 -  remainder typee 3)
+      set region typee
+      if typee = 4 [set pcolor orange]
+      if typee = 3 [set pcolor yellow]
+  ] ]
+  ] display
+end
+
+
+to unplace
+  if timer > .2 and mouse-down? and mouse-xcor < xdoor
+  [reset-timer
+    ask  patch mouse-xcor mouse-ycor[set region 3 set pcolor yellow] ] display
+end
+
 to c-ped  [x y k]
-  if k = 0 [ask one-of patches with [not any? peds-here] [set x pxcor set y pycor]]
-  create-peds 1 [set shape "person" set color cyan set xcor x + random-normal 0 .2 set ycor y + random-normal 0 .2
+  if k = 0 [ask one-of patches with [not any? peds-here and region = 0] [set x pxcor set y pycor]]
+  create-peds 1 [set size 3 set shape "person" set color cyan set xcor in-bound-x (x + abs (random-normal 0 .2)) set ycor  max (list min (list(y + random-normal 0 .2) max-pycor) min-pycor) set state 0
     if k = -1 [set color white set state -1]]
+end
+
+to-report in-bound-x [x]
+  report max (list min (list x max-pxcor) min-pxcor)
+end
+to-report in-bound-y [y]
+  report max (list min (list y max-pycor) min-pycor)
 end
 
 to Create [k] ; create obstacle using mouse click
@@ -89,8 +170,18 @@ end
 
 to move
   set time precision (time + dt) 5 tick-advance 1
+
   ask peds with [state > -1]
     [
+      if state = 0 [
+        let target-patch min-one-of (patches with [region = 2]) [distance myself]
+        if target-patch != nobody  [
+          set targetx [pxcor] of target-patch
+          set targety [pycor] of target-patch
+        ]
+
+        set state 1
+      ]
       let repx 0
       let repy 0
       let hd hd1
@@ -103,27 +194,55 @@ to move
         set repx repx + A * exp((1 - distance myself) / D) * sin(towards myself) * (1 - cos(towards myself - h))
         set repy repy + A * exp((1 - distance myself) / D) * cos(towards myself) * (1 - cos(towards myself - h))
       ]
-      set speedx speedx + dt * (repx + (V0 * sin (towards patch -3 0) - speedx) / Tr)
-      set speedy speedy + dt * (repy + (V0 * cos (towards patch -3 0) - speedy) / Tr)
+
+      let angle 0
+      if (patch-here != patch targetx targety)[
+        set angle towards patch targetx targety
+      ]
+      set speedx speedx + dt * (repx + (V0 * sin (angle) - speedx) / Tr)
+      set speedy speedy + dt * (repy + (V0 * cos (angle) - speedy) / Tr)
     ]
 
   ask peds [
-    set xcor xcor + speedx * dt
-    set ycor ycor + speedy * dt
+    let target-patch min-one-of (patches in-radius 1.3 with [region = 1]) [distance myself]
+  if target-patch != nobody  [
+    set xcor xcor - V0 * sin (towards target-patch) * dt
+    set ycor ycor - V0 * cos (towards target-patch) * dt
   ]
+    set xcor in-bound-x (xcor + speedx * dt)
+    set ycor in-bound-y (ycor + speedy * dt)
+  ]
+  let pa4 patch-set []
+
   ask peds [
-    if [region] of patch-here = 1 [
-    set xcor xcor - speedx * dt
-    set ycor ycor - speedy * dt
+    ;if [region] of patch-here = 1 [
+    ;set xcor xcor - speedx * dt
+    ;set ycor ycor - speedy * dt
+    ;]
+    if [region] of patch-here = 2[
+      set pa4 patch-set (patches with [region = 4 and accessible])
+
+      if (state = 1)[
+        let pa one-of pa4
+        if pa = nobody [
+          set pa one-of patch-set (patches with [region = 3 ])
+        ]
+
+
+        set targetx [pxcor] of pa
+        set targety [pycor] of pa
+        ask pa [set accessible false]
+
+     ]
     ]
   ]
   set mean-speed mean-speed + mean [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1]
   set stddev-speed stddev-speed + sqrt(variance [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1])
-  ask peds with[(xcor > 0 and xcor - speedx * dt <= 0)
-    or (xcor < 0 and xcor - speedx * dt >= 0)
-    or (ycor > 0 and ycor - speedy * dt <= 0)
-    or (ycor < 0 and ycor - speedy * dt >= 0)]
-    [set flow-cum flow-cum + 1]
+  ;ask peds with[(xcor > 0 and xcor - speedx * dt <= 0)
+  ;  or (xcor < 0 and xcor - speedx * dt >= 0)
+  ;  or (ycor > 0 and ycor - speedy * dt <= 0)
+  ;  or (ycor < 0 and ycor - speedy * dt >= 0)]
+  ;  [set flow-cum flow-cum + 1]
   plot!
 
   if cycle? and time > 500[
@@ -138,24 +257,24 @@ end
 GRAPHICS-WINDOW
 542
 11
-864
-334
+1036
+506
 -1
 -1
-20.933333333333334
+6.0
 1
 10
 1
 1
 1
 0
+0
+0
 1
-1
-1
--7
-7
--7
-7
+0
+80
+-40
+40
 0
 0
 1
@@ -171,7 +290,7 @@ Nb-peds
 Nb-peds
 0
 224
-10.0
+38.0
 1
 1
 NIL
@@ -212,10 +331,10 @@ NIL
 1
 
 PLOT
-170
-366
-483
-486
+387
+656
+700
+776
 Mean flow
 Time
 Flow
@@ -231,10 +350,10 @@ PENS
 "Temporal" 1.0 0 -11881837 true "" ""
 
 PLOT
-170
-243
-520
-363
+163
+491
+513
+611
 Speed
 Time
 Speed
@@ -320,10 +439,10 @@ flow-cum / time / world-height
 11
 
 PLOT
-486
-366
-668
-486
+730
+624
+912
+744
 Fundamental diagram
 Density
 Flow
@@ -338,10 +457,10 @@ PENS
 "default" 1.0 0 -11053225 true "" ""
 
 PLOT
-672
-366
-832
-486
+912
+570
+1072
+690
 Speed stddev
 Density
 Stddev
@@ -390,7 +509,7 @@ D
 D
 0.1
 5
-1.5
+2.3
 .1
 1
 NIL
@@ -521,6 +640,87 @@ NIL
 NIL
 NIL
 1
+
+SLIDER
+29
+49
+201
+82
+xdoor
+xdoor
+min-pxcor
+max-pxcor
+20.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+354
+318
+417
+351
+NIL
+place
+T
+1
+T
+PATCH
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+243
+316
+317
+349
+NIL
+unplace
+T
+1
+T
+PATCH
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+258
+261
+325
+294
+NIL
+dplace
+T
+1
+T
+PATCH
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+18
+216
+190
+249
+rdoor
+rdoor
+0
+7
+4.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
