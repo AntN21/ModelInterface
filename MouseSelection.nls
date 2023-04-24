@@ -21,18 +21,18 @@ to setup-mouse
   reset-ticks
 end
 
-to go
+to go [r]
   ; we use a different procedure depending on which state we're in
   ; the procedures will update the `current-state` to the next value as the user clicks
   (ifelse
     (current-state = "not-started")     [ start-selecting ]
     (current-state = "selecting")       [ handle-selecting ]
-    (current-state = "waiting-to-drag") [ handle-waiting ]
+    (current-state = "waiting-to-drag") [ handle-waiting r ]
     (current-state = "dragging")        [ handle-drag ]
   )
 end
 
-to start-selecting
+to start-selecting 
   if mouse-down? [
     ; on the first click we see, we record the mouse position as the start of selection
     set select-x mouse-xcor
@@ -49,7 +49,7 @@ to handle-selecting
     ; user was selecting, but let off the mouse button
     ifelse not any? selected [
       ; if nothing was selected in the box, return to the not-started state
-      deselect
+
       set current-state "not-started"
     ] [
       ; else we are ready to drag
@@ -59,20 +59,14 @@ to handle-selecting
   display
 end
 
-to handle-waiting
-  if mouse-down? [
-    ; on the first click after the selection
-    ; check if we're inside or outside the box
-    ifelse selected? mouse-xcor mouse-ycor [
-      ; inside the box, set the starting drag coordinates
-      set drag-x mouse-xcor
-      set drag-y mouse-ycor
-      set current-state "dragging"
-    ] [
-      ; clicked outside the select box, return to the "selecting" state
-      start-selecting
-    ]
+to handle-waiting [r]
+  
+  ask selected [
+    set region r
+    set pcolor co r
   ]
+  deselect
+  set current-state "not-started"
 end
 
 to handle-drag
@@ -109,8 +103,7 @@ end
 
 to deselect
   ask sides [ die ]
-  ask selected [ set color blue ]
-  set selected no-turtles
+  set selected no-patches
 end
 
 to select [x1 y1 x2 y2] ; x1 y1 is initial corner and x2 y2 is current corner
@@ -119,8 +112,8 @@ to select [x1 y1 x2 y2] ; x1 y1 is initial corner and x2 y2 is current corner
   make-side x1 y1 x1 y2
   make-side x1 y2 x2 y2
   make-side x2 y1 x2 y2
-  set selected circles with [selected? xcor ycor]
-  ask selected [ set color red ]
+  set selected patches with [selected? pxcor pycor]
+  ;ask selected [ set pcolor red ]
 end
 
 to make-side [x1 y1 x2 y2]

@@ -67,12 +67,13 @@ to setup-regions
 
   ; patches with [pxcor = xdoor and (abs pycor >= 2) ] [set region 2] ; les murs
 
-  ask patches with [region = 0] [set pcolor white] ;quai
-  ask patches with [region = 1] [set pcolor black] ;mur
-  ask patches with [region = 2] [set pcolor red] ;porte
-  ask patches with [region = 3] [set pcolor yellow] ; rame
-  ask patches with [region = 4] [set pcolor orange ] ; place
+  ;ask patches with [region = 0] [set pcolor white] ;quai
+  ;ask patches with [region = 1] [set pcolor black] ;mur
+  ;ask patches with [region = 2] [set pcolor red] ;porte
+  ;ask patches with [region = 3] [set pcolor yellow] ; rame
+  ;ask patches with [region = 4] [set pcolor orange ] ; place
 
+  ask patches [set pcolor co region ]
   ask patches [
     ifelse region = 0 [
       set accessible false ; on ne peut aller sur un mur
@@ -93,6 +94,20 @@ to set-agents
   ask n-of round (p * nb-peds) peds [set state 2 set color orange]
 end
 
+to-report co [r]
+  let c (list white black red yellow orange)
+  report item r c
+end
+
+to save-w
+  ask peds [die]
+  export-world file
+end
+
+to import-w
+  import-world file
+  set-agents
+end
 to place
   if timer > .2 and mouse-down? and mouse-xcor < xdoor
 
@@ -232,7 +247,7 @@ to move
         set targetx [pxcor] of pa
         set targety [pycor] of pa
         ask pa [set accessible false]
-
+        set state 2
      ]
     ]
   ]
@@ -255,9 +270,9 @@ to move
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-542
+543
 11
-1036
+1037
 506
 -1
 -1
@@ -509,7 +524,7 @@ D
 D
 0.1
 5
-2.3
+1.0
 .1
 1
 NIL
@@ -650,7 +665,7 @@ xdoor
 xdoor
 min-pxcor
 max-pxcor
-20.0
+28.0
 1
 1
 NIL
@@ -721,6 +736,78 @@ rdoor
 1
 NIL
 HORIZONTAL
+
+BUTTON
+138
+288
+201
+321
+NIL
+go col
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+CHOOSER
+49
+411
+187
+456
+col
+col
+0 1 2 3 4
+3
+
+BUTTON
+66
+310
+136
+343
+NIL
+save-w
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+36
+345
+116
+378
+NIL
+import-w
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+INPUTBOX
+222
+423
+461
+483
+file
+world.txt
+1
+0
+String
 
 @#$#@#$#@
 ## WHAT IS IT?
