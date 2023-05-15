@@ -21,17 +21,46 @@ to setup-mouse
   reset-ticks
 end
 
-to go [r]
+to go
   ; we use a different procedure depending on which state we're in
   ; the procedures will update the `current-state` to the next value as the user clicks
   (ifelse
     (current-state = "not-started")     [ start-selecting ]
     (current-state = "selecting")       [ handle-selecting ]
-    (current-state = "waiting-to-drag") [ handle-waiting r ]
+    (current-state = "waiting-to-drag") [ handle-waiting ]
     (current-state = "dragging")        [ handle-drag ]
   )
 end
 
+to rect [r]
+  ; we use a different procedure depending on which state we're in
+  ; the procedures will update the `current-state` to the next value as the user clicks
+  (ifelse
+    (current-state = "not-started")     [ start-selecting ]
+    (current-state = "selecting")       [ handle-selecting ]
+    (current-state = "waiting-to-drag") [ coloring r ]
+    (current-state = "dragging")        [ handle-drag ]
+  )
+end
+
+to draw [r]
+  if mouse-down? [
+    ; on the first click we see, we record the mouse position as the start of selection
+    ask patch mouse-xcor mouse-ycor [set region r
+      set pcolor co r 
+    ]
+  ]
+end
+
+to coloring [r]
+  
+  ask selected [
+    set region r
+    set pcolor co r
+  ]
+  deselect
+  set current-state "not-started"
+end
 to start-selecting 
   if mouse-down? [
     ; on the first click we see, we record the mouse position as the start of selection
@@ -59,14 +88,20 @@ to handle-selecting
   display
 end
 
-to handle-waiting [r]
-  
-  ask selected [
-    set region r
-    set pcolor co r
+to handle-waiting
+  if mouse-down? [
+    ; on the first click after the selection
+    ; check if we're inside or outside the box
+    ifelse selected? mouse-xcor mouse-ycor [
+      ; inside the box, set the starting drag coordinates
+      set drag-x mouse-xcor
+      set drag-y mouse-ycor
+      set current-state "dragging"
+    ] [
+      ; clicked outside the select box, return to the "selecting" state
+      start-selecting
+    ]
   ]
-  deselect
-  set current-state "not-started"
 end
 
 to handle-drag
@@ -79,11 +114,11 @@ to handle-drag
     ; mouse coordinates from the previous mouse coordinates
     ; and adding the results to the coordinates of the turtles
     ; and sides.
-    ask selected
-    [
-      setxy xcor + new-x - drag-x
-      ycor + new-y - drag-y
-    ]
+    ;ask selected
+    ;[
+    ;  setxy xcor + new-x - drag-x
+    ;  ycor + new-y - drag-y
+    ;]
     ask sides
     [
       setxy xcor + new-x - drag-x
@@ -97,6 +132,17 @@ to handle-drag
   ] [
     ; user was dragging, but let off the mouse button
     ; wait for them to click again
+    let selected2 patches with [selected? pxcor pycor]
+    let k 0
+    let n count selected2
+      loop [
+        if k > n [ stop ]
+        
+      ask item k [self] of selected2 [ set region [region] of item k [self] of selected
+        set pcolor [pcolor] of item k [self] of selected
+      ]
+      
+          set k k + 1 ]
     set current-state "waiting-to-drag"
   ]
 end

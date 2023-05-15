@@ -2,7 +2,7 @@ __includes [ "MouseSelection.nls" ]
 breed [peds ped]
      ; the four sides of the selection rectangle
 globals [time mean-speed stddev-speed flow-cum]
-peds-own [speedx speedy state targetx targety]
+peds-own [speedx speedy state role targetx targety]
 patches-own [
   region ; the number of the region that the patch is in, patches outside all regions have region = 0
   accessible ; ne doit pas longer les murs. (car taille 3 pour les personnes)
@@ -11,6 +11,7 @@ to setup
 
   clear-all reset-ticks if cycle?[set Nb-peds 5 set dt .05]
   setup-regions
+  import-w
   set-agents
   ask peds [set targetx xdoor
     set targety 0 ]
@@ -95,7 +96,7 @@ to set-agents
 end
 
 to-report co [r]
-  let c (list white black red yellow orange)
+  let c (list white black red yellow orange sky)
   report item r c
 end
 
@@ -105,8 +106,10 @@ to save-w
 end
 
 to import-w
+  if file-exists? file [
   import-world file
-  set-agents
+    set-agents
+  ]
 end
 to place
   if timer > .2 and mouse-down? and mouse-xcor < xdoor
@@ -148,7 +151,7 @@ end
 
 to c-ped  [x y k]
   if k = 0 [ask one-of patches with [not any? peds-here and region = 0] [set x pxcor set y pycor]]
-  create-peds 1 [set size 3 set shape "person" set color cyan set xcor in-bound-x (x + abs (random-normal 0 .2)) set ycor  max (list min (list(y + random-normal 0 .2) max-pycor) min-pycor) set state 0
+  create-peds 1 [set size 4 set shape "person" set color cyan set xcor in-bound-x (x + abs (random-normal 0 .2)) set ycor  max (list min (list(y + random-normal 0 .2) max-pycor) min-pycor) set state 0
     if k = -1 [set color white set state -1]]
 end
 
@@ -235,7 +238,7 @@ to move
     ;set ycor ycor - speedy * dt
     ;]
     if [region] of patch-here = 2[
-      set pa4 patch-set (patches with [region = 4 and accessible])
+      set pa4 patch-set (patches with [region = 5 and accessible])
 
       if (state = 1)[
         let pa one-of pa4
@@ -740,10 +743,10 @@ HORIZONTAL
 BUTTON
 138
 288
-201
+210
 321
 NIL
-go col
+rect col
 T
 1
 T
@@ -761,8 +764,8 @@ CHOOSER
 456
 col
 col
-0 1 2 3 4
-3
+0 1 2 3 4 5
+1
 
 BUTTON
 66
@@ -804,10 +807,27 @@ INPUTBOX
 461
 483
 file
-world.txt
+default
 1
 0
 String
+
+BUTTON
+170
+345
+248
+378
+NIL
+draw col
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
