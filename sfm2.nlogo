@@ -2,7 +2,7 @@ __includes [ "MouseSelection.nls" ]
 breed [peds ped]
      ; the four sides of the selection rectangle
 globals [time mean-speed stddev-speed flow-cum]
-peds-own [speedx speedy state role targetx targety]
+peds-own [speedx speedy V state role targetx targety]
 patches-own [
   region ; the number of the region that the patch is in, patches outside all regions have region = 0
   accessible ; ne doit pas longer les murs. (car taille 3 pour les personnes)
@@ -90,13 +90,10 @@ to setup-regions
   ]
 
 end
-to set-agents
-  repeat nb-peds [c-ped 0 0 0]
-  ask n-of round (p * nb-peds) peds [set state 2 set color orange]
-end
+
 
 to-report co [r]
-  let c (list white black red yellow orange sky)
+  let c (list white black red yellow orange pink)
   report item r c
 end
 
@@ -149,9 +146,15 @@ to unplace
     ask  patch mouse-xcor mouse-ycor[set region 3 set pcolor yellow] ] display
 end
 
-to c-ped  [x y k]
-  if k = 0 [ask one-of patches with [not any? peds-here and region = 0] [set x pxcor set y pycor]]
-  create-peds 1 [set size 4 set shape "person" set color cyan set xcor in-bound-x (x + abs (random-normal 0 .2)) set ycor  max (list min (list(y + random-normal 0 .2) max-pycor) min-pycor) set state 0
+to set-agents
+  repeat nb-peds [c-ped 0 0 0 0]
+  repeat nb-peds-in [c-ped 0 0 0 1]
+  ask n-of round (p * nb-peds) peds [set state 2 set color orange]
+end
+
+to c-ped  [x y k r]
+  if k = 0 [ask one-of patches with [not any? peds-here and region = 3 * r] [set x pxcor set y pycor]]
+  create-peds 1 [set size 4 set shape "person" set color cyan set xcor in-bound-x (x + abs (random-normal 0 .2)) set ycor  max (list min (list(y + random-normal 0 .2) max-pycor) min-pycor) set state 0 set role r
     if k = -1 [set color white set state -1]]
 end
 
@@ -163,7 +166,7 @@ to-report in-bound-y [y]
 end
 
 to Create [k] ; create obstacle using mouse click
-  if timer > .2 and mouse-down?[reset-timer c-ped mouse-xcor mouse-ycor k] display
+  if timer > .2 and mouse-down?[reset-timer c-ped mouse-xcor mouse-ycor k 0] display
 end
 
 to Delete [k] ; delete obstacle
@@ -185,10 +188,7 @@ to plot!
   plotxy time flow-cum / time / world-height
 end
 
-
-to move
-  set time precision (time + dt) 5 tick-advance 1
-
+to sfm
   ask peds with [state > -1]
     [
       if state = 0 [
@@ -202,8 +202,7 @@ to move
       ]
       let repx 0
       let repy 0
-      let hd hd1
-      if state = 2 [set hd hd2]
+
       let h hd1
       if not (speedx * speedy = 0)
       [set h atan speedx speedy]
@@ -230,6 +229,12 @@ to move
     set xcor in-bound-x (xcor + speedx * dt)
     set ycor in-bound-y (ycor + speedy * dt)
   ]
+end
+
+to move
+  set time precision (time + dt) 5 tick-advance 1
+  sfm
+
   let pa4 patch-set []
 
   ask peds [
@@ -241,6 +246,7 @@ to move
       set pa4 patch-set (patches with [region = 5 and accessible])
 
       if (state = 1)[
+        if(role = 0)[
         let pa one-of pa4
         if pa = nobody [
           set pa one-of patch-set (patches with [region = 3 ])
@@ -251,9 +257,18 @@ to move
         set targety [pycor] of pa
         ask pa [set accessible false]
         set state 2
-     ]
+        ]
+        if (role = 1) [
+          let target-patch min-one-of (patches with [region = 6]) [distance myself]
+        if target-patch != nobody  [
+          set targetx [pxcor] of target-patch
+          set targety [pycor] of target-patch
+          ]
+        ]
+      ]
     ]
   ]
+
   set mean-speed mean-speed + mean [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1]
   set stddev-speed stddev-speed + sqrt(variance [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1])
   ;ask peds with[(xcor > 0 and xcor - speedx * dt <= 0)
@@ -828,6 +843,21 @@ NIL
 NIL
 NIL
 1
+
+SLIDER
+358
+237
+530
+270
+Nb-peds-in
+Nb-peds-in
+0
+100
+0.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
