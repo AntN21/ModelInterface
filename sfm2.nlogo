@@ -11,8 +11,8 @@ to setup
 
   clear-all reset-ticks if cycle?[set Nb-peds 5 set dt .05]
   setup-regions
-  import-w
-  set-agents
+  ;import-w
+  set-agents2
   ask peds [set targetx xdoor
     set targety 0 ]
 
@@ -41,13 +41,13 @@ to setup-regions
   ask patches with [pxcor < xdoor ] [
     set region 3
 
-    if abs (pycor - ydoor) >= (rdoor)[
-      let y abs (pycor - ydoor)
-      let r remainder y 12
-      if r > 2 and r < 10 [
-        set region 4
-      ]
-    ]
+    ;if abs (pycor - ydoor) >= (rdoor)[
+    ;  let y abs (pycor - ydoor)
+    ;  let r remainder y 12
+    ;  if r > 2 and r < 10 [
+    ;    set region 4
+    ;  ]
+    ;]
     ;if abs (remainder pycor 2) = 1[
     ;  set region 4
     ;]
@@ -58,12 +58,12 @@ to setup-regions
 
 
 
-  ask patches with [(abs (pycor - 12) <= 2) and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [if pxcor != 0 and pxcor != xdoor [set region 4]]
-  ask patches with [(abs (pycor + 12) <= 2) and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [if pxcor != 0 and pxcor != xdoor [set region 4]]
+  ;ask patches with [(abs (pycor - 12) <= 2) and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [if pxcor != 0 and pxcor != xdoor [set region 4]]
+  ;ask patches with [(abs (pycor + 12) <= 2) and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [if pxcor != 0 and pxcor != xdoor [set region 4]]
 
-  ask patches with [abs pycor = 12 and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [set region 1]
+  ;ask patches with [abs pycor = 12 and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [set region 1]
   ask patches with [pxcor < min-pxcor + 1 or pxcor > (max-pxcor - 1) or pycor < min-pycor + 1 or pycor > (max-pycor - 1) ][set region 1] ; les bords. problème de bord sinon, à cause de patch-ahead (pas toujours bien défini).
-
+  ask patches with [pxcor = max-pxcor and abs pycor <= 3] [set region 5]
   ;ask patches with [pycor = 38 and (pxcor <= 5 or (pxcor >= 15 and pxcor <= 20))] [set region 1]
 
   ; patches with [pxcor = xdoor and (abs pycor >= 2) ] [set region 2] ; les murs
@@ -152,12 +152,64 @@ to set-agents
   ask n-of round (p * nb-peds) peds [set state 2 set color orange]
 end
 
+to set-agents2
+
+  r-tri-ped ( nb-peds / 2) xdoor + D delta 2 1.6 0 0
+  r-tri-ped ( nb-peds / 2) xdoor + D  (- delta) 2 -1.6 0 0
+
+   r-tri-ped-in nb-peds-in xdoor - D 0 0 1
+end
 to c-ped  [x y k r]
   if k = 0 [ask one-of patches with [not any? peds-here and region = 3 * r] [set x pxcor set y pycor]]
   create-peds 1 [set size 4 set shape "person" set color cyan set xcor in-bound-x (x + abs (random-normal 0 .2)) set ycor  max (list min (list(y + random-normal 0 .2) max-pycor) min-pycor) set state 0 set role r
     if k = -1 [set color white set state -1]]
 end
 
+to r-tri-ped  [nb x0 y0 xx yy k r]
+  let counter nb
+  let tf floor(sqrt nb)
+  let x x0
+  let y y0
+  let ite0 0
+  while [ counter > 0 and ite0 < tf] [
+    let ite 0
+    while [ counter > 0 and  ite < tf - ite0] [
+      create-peds 1 [set V 0 set size 2 * D set shape "person" set color cyan set xcor in-bound-x (x0 + xx * D * ite) set ycor  (y0 + yy * D * ite0) set state 0 set role r
+        if k = -1 [set color white set state -1]]
+      ;create-peds 1 [set color blue set xcor 40 set ycor 0 ]
+      set ite ite + 1
+      set counter counter - 1
+   ]
+    set ite0 ite0 + 1
+  ]
+end
+to r-tri-ped-in  [nb x0 y0  k r]
+  let counter nb
+  let tf floor(sqrt nb)
+  let x x0
+  let y y0
+  let ite0 0
+  while [ counter > 0 and ite0 < tf] [
+    let ite 0
+    while [ counter > 0 and  ite < tf and x0 -  D * ite > 1] [
+      create-peds 1 [set size 2 * D set shape "person" set color orange set xcor in-bound-x (x0 -  D * ite) set ycor  (y0 +  D * ite0) set state 0 set role r
+        if k = -1 [set color white set state -1]]
+      if ite0 != 0 [
+      create-peds 1 [set size 2 * D set shape "person" set color orange set xcor in-bound-x (x0 -  D * ite) set ycor  (y0 -  D * ite0) set state 0 set role r
+        if k = -1 [set color white set state -1]]
+      ]
+      ;create-peds 1 [set color blue set xcor 40 set ycor 0 ]
+      set ite ite + 1
+   ]
+    set ite0 ite0 + 1
+
+  ]
+
+end
+to-report outside?
+  report count (peds with [role = 1 and  xcor < xdoor + 1]) = 0
+  report count (peds with [role = 1 and  xcor >= xdoor + 1]) >= nb-peds-in
+end
 to-report in-bound-x [x]
   report max (list min (list x max-pxcor) min-pxcor)
 end
@@ -166,7 +218,8 @@ to-report in-bound-y [y]
 end
 
 to Create [k] ; create obstacle using mouse click
-  if timer > .2 and mouse-down?[reset-timer c-ped mouse-xcor mouse-ycor k 0] display
+  if timer > .2 and mouse-down?[reset-timer create-peds 1 [set size 2 * D set shape "person" set color red set xcor in-bound-x (mouse-xcor ) set ycor  (mouse-ycor ) set state 1 set role 0 set V V0] ];c-ped mouse-xcor mouse-ycor k 0]
+    display
 end
 
 to Delete [k] ; delete obstacle
@@ -189,15 +242,15 @@ to plot!
 end
 
 to sfm
-  ask peds with [state > -1]
+  ask peds with [state > -1 ]
     [
-      if state = 0 [
+      if state = 0 and (role != 0 or outside?) [
         let target-patch min-one-of (patches with [region = 2]) [distance myself]
         if target-patch != nobody  [
           set targetx [pxcor] of target-patch
           set targety [pycor] of target-patch
         ]
-
+        set V V0
         set state 1
       ]
       let repx 0
@@ -216,26 +269,21 @@ to sfm
       if (patch-here != patch targetx targety)[
         set angle towards patch targetx targety
       ]
-      set speedx speedx + dt * (repx + (V0 * sin (angle) - speedx) / Tr)
-      set speedy speedy + dt * (repy + (V0 * cos (angle) - speedy) / Tr)
+      set speedx speedx + dt * (repx + (V * sin (angle) - speedx) / Tr)
+      set speedy speedy + dt * (repy + (V * cos (angle) - speedy) / Tr)
     ]
 
   ask peds [
-    let target-patch min-one-of (patches in-radius 1.3 with [region = 1]) [distance myself]
+    let target-patch min-one-of (patches in-radius D with [region = 1]) [distance myself]
   if target-patch != nobody  [
-    set xcor xcor - V0 * sin (towards target-patch) * dt
-    set ycor ycor - V0 * cos (towards target-patch) * dt
+    set xcor xcor - V0 * sin (towards target-patch) * dt / distance target-patch ^ 2
+    set ycor ycor - V0 * cos (towards target-patch) * dt / distance target-patch ^ 2
   ]
     set xcor in-bound-x (xcor + speedx * dt)
     set ycor in-bound-y (ycor + speedy * dt)
   ]
 end
-
-to move
-  set time precision (time + dt) 5 tick-advance 1
-  sfm
-
-  let pa4 patch-set []
+to change-state
 
   ask peds [
     ;if [region] of patch-here = 1 [
@@ -243,31 +291,105 @@ to move
     ;set ycor ycor - speedy * dt
     ;]
     if [region] of patch-here = 2[
-      set pa4 patch-set (patches with [region = 5 and accessible])
+      let pa4 patch-set (patches with [region = 5 and accessible])
 
       if (state = 1)[
         if(role = 0)[
-        let pa one-of pa4
-        if pa = nobody [
-          set pa one-of patch-set (patches with [region = 3 ])
-        ]
+          let pa one-of pa4
+          let places sort-by [ distance patch xdoor 0 - distance self ] ([self] of patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true])
+          if pa = nobody [
+            set pa max-one-of  (patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true])  [distance patch xdoor 0 - distance myself]
+          ]
+          set pa item 0 places
 
-
-        set targetx [pxcor] of pa
-        set targety [pycor] of pa
-        ask pa [set accessible false]
-        set state 2
+          set targetx [pxcor] of pa
+          set targety [pycor] of pa
+          ask pa [set accessible false]
+          set state 2
         ]
         if (role = 1) [
-          let target-patch min-one-of (patches with [region = 6]) [distance myself]
-        if target-patch != nobody  [
-          set targetx [pxcor] of target-patch
-          set targety [pycor] of target-patch
+          let target-patch min-one-of (patches with [region = 5]) [distance myself]
+          if target-patch != nobody  [
+            set targetx [pxcor] of target-patch
+            set targety [pycor] of target-patch
           ]
         ]
       ]
     ]
   ]
+
+end
+to change-state2
+
+  ask peds [
+    if role = 0 [
+      if state = 0 [
+        if  outside? [
+          let target-patch min-one-of (patches with [region = 2]) [distance myself] ; active pour cible la porte.
+          if target-patch != nobody  [
+            set targetx [pxcor] of target-patch
+            set targety [pycor] of target-patch
+          ]
+          set V V0
+          set state 1
+        ]
+      ]
+      if state = 1 [
+        if [region] of patch-here = 2[ ;au niveau de la porte
+          let pa4 patch-set (patches with [region = 4 and accessible])
+          let pa one-of pa4
+          ;let places sort-by [ distance patch xdoor 0 - .5 * distance self ] ([self] of patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true])
+          if pa = nobody [
+            set pa max-one-of  (patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true])  [distance patch xdoor 0 - distance myself]
+          ]
+          ;let n random-poisson 40
+          ;show places
+          ;set pa item min (list n (length places))  places
+          set targetx [pxcor] of pa
+          set targety [pycor] of pa
+          ask pa [set accessible false]
+          set state 2
+        ]
+      ]
+      if state = 2 [
+        if distance patch targetx targety < 1 [
+          set V 0
+          set state  3
+        ]
+      ]
+    ]
+    if (role = 1) [
+      if [region] of patch-here = 3 [set state 1 ]
+      if state = 1 [
+        let target-patch min-one-of (patches with [region = 2]) [distance myself]
+        if distance target-patch < 1 [set state 2 ]
+        if target-patch != nobody  [
+          set targetx [pxcor] of target-patch
+          set targety [pycor] of target-patch
+        ]
+
+      ]
+      if state = 2 [
+        let target-patch min-one-of (patches with [region = 5]) [distance myself]
+        if target-patch != nobody  [
+          set targetx [pxcor] of target-patch
+          set targety [pycor] of target-patch
+        ]
+        if [region] of patch-here = 5[
+          die
+        ]
+      ]
+    ]
+  ]
+
+end
+to move
+  set time precision (time + dt) 5 tick-advance 1
+  sfm
+
+  change-state2
+
+
 
   set mean-speed mean-speed + mean [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1]
   set stddev-speed stddev-speed + sqrt(variance [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1])
@@ -322,8 +444,8 @@ SLIDER
 Nb-peds
 Nb-peds
 0
-224
-38.0
+400
+282.0
 1
 1
 NIL
@@ -542,7 +664,7 @@ D
 D
 0.1
 5
-1.0
+1.9
 .1
 1
 NIL
@@ -574,7 +696,7 @@ A
 A
 0
 5
-1.9
+1.0
 .1
 1
 NIL
@@ -634,7 +756,7 @@ p
 p
 0
 1
-0.0
+107.0
 .05
 1
 NIL
@@ -683,7 +805,7 @@ xdoor
 xdoor
 min-pxcor
 max-pxcor
-28.0
+15.0
 1
 1
 NIL
@@ -779,7 +901,7 @@ CHOOSER
 456
 col
 col
-0 1 2 3 4 5
+0 1 2 3 4 5 6
 1
 
 BUTTON
@@ -853,11 +975,33 @@ Nb-peds-in
 Nb-peds-in
 0
 100
-0.0
+26.0
 1
 1
 NIL
 HORIZONTAL
+
+SLIDER
+24
+521
+196
+554
+delta
+delta
+0
+10
+8.0
+1
+1
+NIL
+HORIZONTAL
+
+OUTPUT
+1251
+275
+1491
+329
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
