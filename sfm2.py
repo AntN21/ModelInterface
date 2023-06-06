@@ -70,22 +70,25 @@ def simulate_once(netlogo, number_out, number_in, A, D, delta, max_ticks):
     netlogo.command(f'set nb-peds-in {number_in}')
     netlogo.command(f'set A {A}')
     netlogo.command(f'set D {D}')
+    netlogo.command(f'set Tr {0.5}')
     netlogo.command(f'set delta {delta}')
 
     netlogo.command('setup')
 
     # On lance la simulation
-    netlogo.repeat_command("Setup", max_ticks)
+    #netlogo.repeat_command("Setup", max_ticks)
     netlogo.repeat_command("Move", max_ticks)
 
     # t: le nombre de ticks pour que tout le monde soit monté.
     # pas toujours max_ticks car la simulation n'avance plus si tout le monde est monté.
-    t = int(netlogo.report("ticks"))
-    rayon_libre_moyen = netlogo.report("rayon-libre-mean")
+    t = int(netlogo.report("time"))
+    #rayon_libre_moyen = netlogo.report("rayon-libre-mean")
 
-    return t, rayon_libre_moyen
+    return t
 
-
+lt=[simulate_once(pyNetLogo.NetLogoLink(gui=True),number_out=0,number_in=nbin,A = 1, D = 2.7) for nbin in range(10,15)]
+plt.plot(range(10,45),lt)
+plt.show()
 def save_simulations():
     """
     pas vraiment une fonction. paramètres à modifier à l'intérieur.

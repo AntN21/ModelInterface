@@ -174,7 +174,7 @@ to r-tri-ped  [nb x0 y0 xx yy k r]
   while [ counter > 0 and ite0 < tf] [
     let ite 0
     while [ counter > 0 and  ite < tf - ite0] [
-      create-peds 1 [set V 0 set size 2 * D set shape "person" set color cyan set xcor in-bound-x (x0 + xx * D * ite) set ycor  (y0 + yy * D * ite0) set state 0 set role r
+      create-peds 1 [set V 0 set size 3 set shape "person" set color cyan set xcor in-bound-x (x0 + xx * D * ite) set ycor  (y0 + yy * D * ite0) set state 0 set role r
         if k = -1 [set color white set state -1]]
       ;create-peds 1 [set color blue set xcor 40 set ycor 0 ]
       set ite ite + 1
@@ -192,10 +192,10 @@ to r-tri-ped-in  [nb x0 y0  k r]
   while [ counter > 0 and ite0 < tf] [
     let ite 0
     while [ counter > 0 and  ite < tf and x0 -  D * ite > 1] [
-      create-peds 1 [set size 2 * D set shape "person" set color orange set xcor in-bound-x (x0 -  D * ite) set ycor  (y0 +  D * ite0) set state 0 set role r
+      create-peds 1 [set size 3 set shape "person" set color orange set xcor in-bound-x (x0 -  D * ite) set ycor  (y0 +  D * ite0) set state 0 set role r
         if k = -1 [set color white set state -1]]
       if ite0 != 0 [
-      create-peds 1 [set size 2 * D set shape "person" set color orange set xcor in-bound-x (x0 -  D * ite) set ycor  (y0 -  D * ite0) set state 0 set role r
+      create-peds 1 [set size 3 set shape "person" set color orange set xcor in-bound-x (x0 -  D * ite) set ycor  (y0 -  D * ite0) set state 0 set role r
         if k = -1 [set color white set state -1]]
       ]
       ;create-peds 1 [set color blue set xcor 40 set ycor 0 ]
@@ -383,13 +383,16 @@ to change-state2
   ]
 
 end
+to-report finish?
+  report count(peds with [role = 0 and xcor >= xdoor ]) + count (peds with [role = 1]) = 0
+end
 to move
   set time precision (time + dt) 5 tick-advance 1
   sfm
 
   change-state2
 
-
+  if finish?[show time stop ]
 
   set mean-speed mean-speed + mean [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1]
   set stddev-speed stddev-speed + sqrt(variance [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1])
@@ -445,7 +448,7 @@ Nb-peds
 Nb-peds
 0
 400
-282.0
+0.0
 1
 1
 NIL
@@ -664,7 +667,7 @@ D
 D
 0.1
 5
-1.9
+2.7
 .1
 1
 NIL
@@ -871,7 +874,7 @@ rdoor
 rdoor
 0
 7
-4.0
+7.0
 1
 1
 NIL
@@ -975,7 +978,7 @@ Nb-peds-in
 Nb-peds-in
 0
 100
-26.0
+55.0
 1
 1
 NIL
