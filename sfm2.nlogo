@@ -2,7 +2,7 @@ __includes [ "MouseSelection.nls" ]
 breed [peds ped]
      ; the four sides of the selection rectangle
 globals [time mean-speed stddev-speed flow-cum]
-peds-own [speedx speedy V state role targetx targety]
+peds-own [speedx speedy V state role targetx targety Tra]
 patches-own [
   region ; the number of the region that the patch is in, patches outside all regions have region = 0
   accessible ; ne doit pas longer les murs. (car taille 3 pour les personnes)
@@ -154,10 +154,10 @@ end
 
 to set-agents2
 
-  r-tri-ped ( nb-peds / 2) xdoor + D delta 2 1.6 0 0
-  r-tri-ped ( nb-peds / 2) xdoor + D  (- delta) 2 -1.6 0 0
+  r-tri-ped ( nb-peds / 2) xdoor + D delta .5 .5 0 0
+  r-tri-ped ( nb-peds / 2) xdoor + D  (- delta) .5 -.5 0 0
 
-   r-tri-ped-in nb-peds-in xdoor - D 0 0 1
+   r-tri-ped-in nb-peds-in xdoor - D 0 0 .5 .5 1
 end
 to c-ped  [x y k r]
   if k = 0 [ask one-of patches with [not any? peds-here and region = 3 * r] [set x pxcor set y pycor]]
@@ -183,7 +183,7 @@ to r-tri-ped  [nb x0 y0 xx yy k r]
     set ite0 ite0 + 1
   ]
 end
-to r-tri-ped-in  [nb x0 y0  k r]
+to r-tri-ped-in  [nb x0 y0 xx yy k r]
   let counter nb
   let tf floor(sqrt nb)
   let x x0
@@ -194,9 +194,11 @@ to r-tri-ped-in  [nb x0 y0  k r]
     while [ counter > 0 and  ite < tf and x0 -  D * ite > 1] [
       create-peds 1 [set size 3 set shape "person" set color orange set xcor in-bound-x (x0 -  D * ite) set ycor  (y0 +  D * ite0) set state 0 set role r
         if k = -1 [set color white set state -1]]
-      if ite0 != 0 [
+      set counter counter - 1
+      if ite0 != 0 and counter > 0[
       create-peds 1 [set size 3 set shape "person" set color orange set xcor in-bound-x (x0 -  D * ite) set ycor  (y0 -  D * ite0) set state 0 set role r
-        if k = -1 [set color white set state -1]]
+        if k = -1 [set color white set state -1]
+        set counter counter - 1]
       ]
       ;create-peds 1 [set color blue set xcor 40 set ycor 0 ]
       set ite ite + 1
@@ -218,7 +220,7 @@ to-report in-bound-y [y]
 end
 
 to Create [k] ; create obstacle using mouse click
-  if timer > .2 and mouse-down?[reset-timer create-peds 1 [set size 2 * D set shape "person" set color red set xcor in-bound-x (mouse-xcor ) set ycor  (mouse-ycor ) set state 1 set role 0 set V V0] ];c-ped mouse-xcor mouse-ycor k 0]
+  if timer > .2 and mouse-down?[reset-timer create-peds 1 [set Tra 0.05 set size 2 * D set shape "person" set color brown set xcor in-bound-x (mouse-xcor ) set ycor  (mouse-ycor ) set state 1 set role 0 set V V0] ];c-ped mouse-xcor mouse-ycor k 0]
     display
 end
 
@@ -244,6 +246,7 @@ end
 to sfm
   ask peds with [state > -1 ]
     [
+      if color != red [set Tra Tr]
       if state = 0 and (role != 0 or outside?) [
         let target-patch min-one-of (patches with [region = 2]) [distance myself]
         if target-patch != nobody  [
@@ -269,8 +272,8 @@ to sfm
       if (patch-here != patch targetx targety)[
         set angle towards patch targetx targety
       ]
-      set speedx speedx + dt * (repx + (V * sin (angle) - speedx) / Tr)
-      set speedy speedy + dt * (repy + (V * cos (angle) - speedy) / Tr)
+      set speedx speedx + dt * (repx + (V * sin (angle) - speedx) / Tra)
+      set speedy speedy + dt * (repy + (V * cos (angle) - speedy) / Tra)
     ]
 
   ask peds [
@@ -319,12 +322,20 @@ to change-state
   ]
 
 end
+
+to-report dis[p1 p2]
+  let d1 0
+  let d2 0
+  ask p1 [set d1 distance patch xdoor 0 - .5 * distance myself]
+  ask p2 [set d2 distance patch xdoor 0 - .5 * distance myself]
+  report d2 < d1
+end
 to change-state2
 
   ask peds [
     if role = 0 [
       if state = 0 [
-        if  outside? [
+        if  outside?  [ ;
           let target-patch min-one-of (patches with [region = 2]) [distance myself] ; active pour cible la porte.
           if target-patch != nobody  [
             set targetx [pxcor] of target-patch
@@ -338,13 +349,13 @@ to change-state2
         if [region] of patch-here = 2[ ;au niveau de la porte
           let pa4 patch-set (patches with [region = 4 and accessible])
           let pa one-of pa4
-          ;let places sort-by [ distance patch xdoor 0 - .5 * distance self ] ([self] of patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true])
+          ;[ distance patch xdoor 0 - .5 * distance self ]
+          let places sort-by dis ([self] of patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true])
           if pa = nobody [
             set pa max-one-of  (patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true])  [distance patch xdoor 0 - distance myself]
           ]
-          ;let n random-poisson 40
-          ;show places
-          ;set pa item min (list n (length places))  places
+          set pa choose-place modee
+
           set targetx [pxcor] of pa
           set targety [pycor] of pa
           ask pa [set accessible false]
@@ -352,8 +363,10 @@ to change-state2
         ]
       ]
       if state = 2 [
+        if [region] of patch-here = 0[set state 0 ask patch targetx targety [ set accessible  true ] ]
+
         if distance patch targetx targety < 1 [
-          set V 0
+          set V Vf * V0
           set state  3
         ]
       ]
@@ -383,16 +396,126 @@ to change-state2
   ]
 
 end
+to-report choose-place [mode] ; "opti" "poisson" "random"
+
+  if mode = "random" [ report one-of  (patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true]) ]
+  let places sort-by dis ([self] of patches with [region = 3 and abs (remainder pxcor 2) = 1 and abs (remainder pycor 2) = 1 and accessible = true])
+
+  if mode = "opti" [report item 0 places ]
+
+  if mode = "poisson" [let n random-poisson 100
+    report item min (list n (length places))  places]
+
+
+report choose-place "random"
+
+end
 to-report finish?
-  report count(peds with [role = 0 and xcor >= xdoor ]) + count (peds with [role = 1]) = 0
+  report count(peds with [role = 0 and xcor >= xdoor ]) + count (peds with [role = 1 and xcor <= xdoor + 1]) <= 5
+end
+
+to sfm-init
+  tick-advance 1
+  change-state2
+  let stage -1
+  if (ticks > 1000) [set stage 0]
+  if stage = 0 and outside? [set stage 1]
+  show stage
+  ask peds with [state > -1 ]
+    [
+      if state = 0 and (role != 0 or outside?) [
+        let target-patch min-one-of (patches with [region = 2]) [distance myself]
+        if target-patch != nobody  [
+          set targetx [pxcor] of target-patch
+          set targety [pycor] of target-patch
+        ]
+        set V V0
+        set state 1
+      ]
+      let repx 0
+      let repy 0
+
+      let h hd1
+      if not (speedx * speedy = 0)
+      [set h atan speedx speedy]
+      ask peds in-radius (2 * D) with [not (self = myself)] ; self is me. myself is the agent who is asking me to do whatever I'm doing now.
+      [
+        set repx repx + A * exp((1 - distance myself) / D) * sin(towards myself) * (1 - cos(towards myself - h))
+        set repy repy + A * exp((1 - distance myself) / D) * cos(towards myself) * (1 - cos(towards myself - h))
+      ]
+
+      let angle 0
+      if (patch-here != patch targetx targety)[
+        set angle towards patch targetx targety
+      ]
+      set speedx speedx + dt * (repx + (V * sin (angle) - speedx) / Tr)
+      set speedy speedy + dt * (repy + (V * cos (angle) - speedy) / Tr)
+    ]
+
+  wall stage
+end
+
+to test
+  ask peds with [state > -1 ]
+    [
+      if state = 0 and (role != 0 or outside?) [
+        let target-patch min-one-of (patches with [region = 2]) [distance myself]
+        if target-patch != nobody  [
+          set targetx [pxcor] of target-patch
+          set targety [pycor] of target-patch
+        ]
+        set V V0
+        set state 1
+      ]
+      let repx 0
+      let repy 0
+
+      let h hd1
+      if not (speedx * speedy = 0)
+      [set h atan speedx speedy]
+      ask peds in-radius (2 * D) with [not (self = myself)] ; self is me. myself is the agent who is asking me to do whatever I'm doing now.
+      [
+        set repx repx + A * exp((1 - distance myself) / D) * sin(towards myself) * (1 - cos(towards myself - h))
+        set repy repy + A * exp((1 - distance myself) / D) * cos(towards myself) * (1 - cos(towards myself - h))
+      ]
+
+      let angle 0
+      if (patch-here != patch targetx targety)[
+        set angle towards patch targetx targety
+      ]
+      set speedx speedx + dt * (repx + (V * sin (angle) - speedx) / Tr)
+      set speedy speedy + dt * (repy + (V * cos (angle) - speedy) / Tr)
+    ]
+  ask peds [
+    let target-patch min-one-of (patches in-radius D with [region = 1 or pxcor = xdoor]) [distance myself]; or (pxcor >= xdoor and abs pycor = delta - 1 and stage <= 0) ]) [distance myself]
+  if target-patch != nobody  [
+    set xcor xcor - V0 * sin (towards target-patch) * dt / distance target-patch ^ 2
+    set ycor ycor - V0 * cos (towards target-patch) * dt / distance target-patch ^ 2
+  ]
+    set xcor in-bound-x (xcor + speedx * dt)
+    set ycor in-bound-y (ycor + speedy * dt)
+  ]
+end
+to wall [stage]
+  ask peds [
+    let target-patch min-one-of (patches in-radius D with [region = 1 or (pxcor = xdoor and stage < 0)]) [distance myself]; or (pxcor >= xdoor and abs pycor = delta - 1 and stage <= 0) ]) [distance myself]
+  if target-patch != nobody  [
+    set xcor xcor - V0 * sin (towards target-patch) * dt / distance target-patch ^ 2
+    set ycor ycor - V0 * cos (towards target-patch) * dt / distance target-patch ^ 2
+  ]
+    set xcor in-bound-x (xcor + speedx * dt)
+    set ycor in-bound-y (ycor + speedy * dt)
+  ]
 end
 to move
+  if finish?[show time stop ]
+  if time = 0 [show count (peds with [role = 1] )]
   set time precision (time + dt) 5 tick-advance 1
   sfm
 
   change-state2
 
-  if finish?[show time stop ]
+
 
   set mean-speed mean-speed + mean [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1]
   set stddev-speed stddev-speed + sqrt(variance [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1])
@@ -415,8 +538,8 @@ end
 GRAPHICS-WINDOW
 543
 11
-1037
-506
+797
+386
 -1
 -1
 6.0
@@ -430,9 +553,9 @@ GRAPHICS-WINDOW
 0
 1
 0
-80
--40
 40
+-30
+30
 0
 0
 1
@@ -448,7 +571,7 @@ Nb-peds
 Nb-peds
 0
 400
-0.0
+205.0
 1
 1
 NIL
@@ -489,10 +612,10 @@ NIL
 1
 
 PLOT
-387
-656
-700
-776
+1168
+668
+1481
+788
 Mean flow
 Time
 Flow
@@ -508,10 +631,10 @@ PENS
 "Temporal" 1.0 0 -11881837 true "" ""
 
 PLOT
-163
-491
-513
-611
+1163
+417
+1513
+537
 Speed
 Time
 Speed
@@ -542,10 +665,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-177
-20
-235
-65
+1163
+368
+1221
+413
 Time
 time
 17
@@ -553,10 +676,10 @@ time
 11
 
 MONITOR
-300
-20
-370
-65
+1286
+368
+1356
+413
 Mean speed
 mean [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1]
 5
@@ -564,10 +687,10 @@ mean [sqrt(speedx ^ 2 + speedy ^ 2)] of peds with [state > -1]
 11
 
 MONITOR
-373
-20
-450
-65
+1359
+368
+1436
+413
 Speed stddev
 stddev-speed / ticks
 5
@@ -575,10 +698,10 @@ stddev-speed / ticks
 11
 
 MONITOR
-238
-20
-296
-65
+1224
+368
+1282
+413
 Density
 Nb-peds / world-width / world-height
 5
@@ -586,10 +709,10 @@ Nb-peds / world-width / world-height
 11
 
 MONITOR
-453
-20
-514
-65
+1439
+368
+1500
+413
 Flow
 flow-cum / time / world-height
 5
@@ -597,10 +720,10 @@ flow-cum / time / world-height
 11
 
 PLOT
-730
-624
-912
-744
+1166
+544
+1348
+664
 Fundamental diagram
 Density
 Flow
@@ -615,10 +738,10 @@ PENS
 "default" 1.0 0 -11053225 true "" ""
 
 PLOT
-912
-570
-1072
-690
+1352
+544
+1512
+664
 Speed stddev
 Density
 Stddev
@@ -633,10 +756,10 @@ PENS
 "default" 1.0 0 -11053225 true "" ""
 
 SWITCH
-425
-186
-528
-219
+1017
+138
+1120
+171
 cycle?
 cycle?
 1
@@ -667,7 +790,7 @@ D
 D
 0.1
 5
-2.7
+2.0
 .1
 1
 NIL
@@ -706,10 +829,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-424
-113
-529
-146
+900
+178
+1005
+211
 hd1
 hd1
 0
@@ -736,10 +859,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-424
-148
-529
-181
+900
+213
+1005
+246
 hd2
 hd2
 0
@@ -751,10 +874,10 @@ degree
 HORIZONTAL
 
 SLIDER
-424
-77
-529
-110
+898
+140
+1003
+173
 p
 p
 0
@@ -800,70 +923,19 @@ NIL
 1
 
 SLIDER
-29
-49
-201
-82
+17
+288
+189
+321
 xdoor
 xdoor
 min-pxcor
 max-pxcor
-15.0
+9.0
 1
 1
 NIL
 HORIZONTAL
-
-BUTTON
-354
-318
-417
-351
-NIL
-place
-T
-1
-T
-PATCH
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-243
-316
-317
-349
-NIL
-unplace
-T
-1
-T
-PATCH
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-258
-261
-325
-294
-NIL
-dplace
-T
-1
-T
-PATCH
-NIL
-NIL
-NIL
-NIL
-1
 
 SLIDER
 18
@@ -874,17 +946,17 @@ rdoor
 rdoor
 0
 7
-7.0
+5.0
 1
 1
 NIL
 HORIZONTAL
 
 BUTTON
-138
-288
-210
-321
+310
+668
+382
+701
 NIL
 rect col
 T
@@ -898,20 +970,20 @@ NIL
 1
 
 CHOOSER
-49
-411
-187
-456
+311
+714
+449
+759
 col
 col
 0 1 2 3 4 5 6
 1
 
 BUTTON
-66
-310
-136
-343
+98
+675
+168
+708
 NIL
 save-w
 NIL
@@ -925,10 +997,10 @@ NIL
 1
 
 BUTTON
-36
-345
-116
-378
+11
+675
+91
+708
 NIL
 import-w
 NIL
@@ -942,10 +1014,10 @@ NIL
 1
 
 INPUTBOX
-222
-423
-461
-483
+8
+711
+247
+771
 file
 default
 1
@@ -953,10 +1025,10 @@ default
 String
 
 BUTTON
-170
-345
-248
-378
+387
+669
+465
+702
 NIL
 draw col
 T
@@ -970,41 +1042,93 @@ NIL
 1
 
 SLIDER
-358
-237
-530
-270
+221
+37
+393
+70
 Nb-peds-in
 Nb-peds-in
 0
 100
-55.0
+0.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-24
-521
-196
-554
+18
+252
+190
+285
 delta
 delta
 0
 10
-8.0
+6.0
 1
 1
 NIL
 HORIZONTAL
 
-OUTPUT
-1251
-275
-1491
-329
-11
+BUTTON
+331
+261
+403
+294
+NIL
+sfm-init
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+222
+222
+285
+255
+NIL
+test
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+SLIDER
+330
+223
+502
+256
+Vf
+Vf
+0
+1
+0.6
+0.2
+1
+NIL
+HORIZONTAL
+
+CHOOSER
+789
+438
+927
+483
+modee
+modee
+"random" "opti" "poisson"
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
