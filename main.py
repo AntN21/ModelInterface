@@ -1,5 +1,5 @@
 import jpype
-import pynetlogo as pyNetLogo
+import Pynetlogo as pyNetLogo
 import numpy as np
 import json
 import seaborn as sns

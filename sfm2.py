@@ -29,7 +29,7 @@ def simulate(numbers_out, prop_personnes_polies, patience_gens_polis, nbr_runs, 
     # netlogo = pyNetLogo.NetLogoLink(gui=True)  # Lance Netlogo.
     netlogo = pyNetLogo.NetLogoLink()
 
-    netlogo_file = 'compression_montee.nlogo'
+    netlogo_file = 'sfm2.nlogo'
     netlogo.load_model(netlogo_file)
 
     X, Y, R = [], [], []
@@ -86,9 +86,6 @@ def simulate_once(netlogo, number_out, number_in, A, D, delta, max_ticks):
 
     return t
 
-lt=[simulate_once(pyNetLogo.NetLogoLink(gui=True),number_out=0,number_in=nbin,A = 1, D = 2.7) for nbin in range(10,15)]
-plt.plot(range(10,45),lt)
-plt.show()
 def save_simulations():
     """
     pas vraiment une fonction. paramètres à modifier à l'intérieur.
@@ -199,7 +196,7 @@ def simulate_once_bis():
     netlogo = pyNetLogo.NetLogoLink(gui=True)  # Lance Netlogo.
     # netlogo = pyNetLogo.NetLogoLink()
 
-    netlogo_file = 'compression_montee.nlogo'
+    netlogo_file = 'sfm2.nlogo'
     netlogo.load_model(netlogo_file)
 
     netlogo.command(f'set number-out {80}')
@@ -381,4 +378,8 @@ def show_graphs():
 
 
 if __name__ == "__main__":
-    show_graphs()
+    nlogo = pyNetLogo.NetLogoLink(jvm_home = "C:/Program Files/NetLogo 6.2.0/runtime/lib" )
+    lt = [simulate_once(nlogo, number_out=0, number_in=nbin, A=1, D=2.7) for nbin in range(10, 15)]
+    plt.plot(range(10, 45), lt)
+    plt.show()
+    #show_graphs()

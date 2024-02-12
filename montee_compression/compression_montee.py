@@ -190,18 +190,29 @@ def simulate_once_bis():
     le rayon-libre moyen moyen. (moyen selon le nombre de personnes et selon les ticks).
     """
 
-    netlogo = pyNetLogo.NetLogoLink(gui=True)  # Lance Netlogo.
+    netlogo = pyNetLogo.NetLogoLink(gui=False,netlogo_home ="C:/Program Files/NetLogo 6.2.0", jvm_home = "C:/Program Files/NetLogo 6.2.0/runtime/bin/server/jvm.dll")  # Lance Netlogo.
     # netlogo = pyNetLogo.NetLogoLink()
 
-    netlogo_file = 'compression_montee.nlogo'
+    netlogo_file = 'C:/Users/ANT/Documents/Model interface RER/explo-master/sfm2.py'
     netlogo.load_model(netlogo_file)
+    number_out=5
+    number_in = 5
+    A= 1
+    D =1
+    delta= 6
+    # On initialise.
+    netlogo.command(f'set nb-peds {number_out}')
+    netlogo.command(f'set nb-peds-in {number_in}')
+    netlogo.command(f'set A {A}')
+    netlogo.command(f'set D {D}')
+    netlogo.command(f'set Tr {0.5}')
+    netlogo.command(f'set delta {delta}')
 
-    netlogo.command(f'set number-out {80}')
-    netlogo.command(f'set prop_personnes_polies {1}')
-    netlogo.command(f'set patience_gens_polis {20}')
-    netlogo.command(f'set seed {0}')
     netlogo.command('setup')
 
+    # On lance la simulation
+    # netlogo.repeat_command("Setup", max_ticks)
+    netlogo.repeat_command("Move", max_ticks)
     X, T, P, R = [], [], [], []
 
     for t in range(281):
@@ -375,4 +386,5 @@ def show_graphs():
 
 
 if __name__ == "__main__":
-    show_graphs()
+    #show_graphs()
+    simulate_once_bis()
